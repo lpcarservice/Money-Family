@@ -5,3 +5,41 @@
 html, body, #root {
   min-height: 100vh;
 }
+
+body {
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ตัวเลขเรียงตรงกันทุกแถว ไม่เต้นตามความกว้างของเลขแต่ละตัว */
+.tnum {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum';
+  letter-spacing: -0.01em;
+}
+
+/* เผื่อขอบจอมือถือที่มีติ่ง/แถบล่าง */
+.safe-top { padding-top: max(1.25rem, env(safe-area-inset-top)); }
+.safe-bottom { padding-bottom: max(0.5rem, env(safe-area-inset-bottom)); }
+
+/* ปุ่มและช่องกรอกให้เห็นชัดตอนโฟกัสด้วยคีย์บอร์ด */
+button:focus-visible,
+input:focus-visible,
+select:focus-visible {
+  outline: 2px solid #2563EB;
+  outline-offset: 2px;
+}
+
+input, select {
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+input:focus, select:focus {
+  outline: none;
+  border-color: #2563EB !important;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+/* iOS ซูมเองเวลาแตะช่องกรอกที่ตัวอักษรเล็กกว่า 16px */
+@media (max-width: 640px) {
+  input, select, textarea { font-size: 16px; }
+}

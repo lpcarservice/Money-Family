@@ -2,16 +2,21 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { Wallet, TrendingUp, TrendingDown, CreditCard, ShieldCheck, Building2, Plus, Trash2, X, Settings, RefreshCw, CloudOff } from 'lucide-react';
 
 const PALETTE = {
-  paper: '#FAF7F0',
-  paperAlt: '#F1EBDC',
-  ink: '#1C2B39',
-  inkSoft: '#4A5A68',
-  gold: '#A6784C',
-  goldSoft: '#D9C9A8',
-  green: '#3F6650',
-  red: '#A6432D',
-  border: '#E1D8C0',
+  paper: '#F3F7FD',      // พื้นหลังหน้า ฟ้าจางมาก
+  paperAlt: '#EEF4FE',   // หัวตาราง
+  surface: '#FFFFFF',
+  ink: '#0F2043',        // ตัวหนังสือหลัก
+  inkSoft: '#6B7C99',    // ตัวหนังสือรอง
+  gold: '#2563EB',       // สีเน้น (ชื่อคีย์เดิม ค่าใหม่เป็นน้ำเงิน)
+  goldSoft: '#DBEAFE',
+  primaryDeep: '#15307A',
+  green: '#0E9F6E',
+  red: '#E02424',
+  border: '#E2EAF7',
 };
+
+const SHADOW_CARD = '0 1px 2px rgba(15,32,67,0.05), 0 4px 16px rgba(15,32,67,0.06)';
+const SHADOW_LIFT = '0 6px 20px rgba(37,99,235,0.35)';
 
 const EXPENSE_CATS = ['อาหาร', 'ที่อยู่อาศัย', 'เดินทาง', 'ผ่อนชำระ', 'สุขภาพ', 'บันเทิง', 'การศึกษา', 'ของใช้ส่วนตัว', 'อื่นๆ'];
 const INCOME_CATS = ['เงินเดือน', 'รายได้ธุรกิจ', 'เงินปันผล/ดอกเบี้ย', 'ค่าคอมมิชชั่น', 'อื่นๆ'];
@@ -127,8 +132,10 @@ function SyncLine({ online, loading, pending, lastSync }) {
   else if (lastSync) text = `อัปเดตล่าสุด ${new Date(lastSync).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}`;
   else text = 'ยังไม่ได้ซิงค์';
   return (
-    <div style={{ color: PALETTE.inkSoft }} className="text-[11px] mt-1 flex items-center gap-1">
-      {icon}{text}
+    <div className="text-[11px] mt-3 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-white/85"
+      style={{ background: 'rgba(255,255,255,0.14)' }}>
+      {icon || <span className="w-1.5 h-1.5 rounded-full" style={{ background: pending || loading ? '#FCD34D' : '#6EE7B7' }} />}
+      {text}
     </div>
   );
 }
@@ -155,18 +162,23 @@ function Field({ label, children }) {
 }
 
 const inputStyle = {
-  background: '#fff',
+  background: PALETTE.surface,
   border: `1px solid ${PALETTE.border}`,
   color: PALETTE.ink,
 };
 
 function Modal({ title, onClose, children }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4" style={{ background: 'rgba(28,43,57,0.45)' }}>
-      <div className="w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl p-5 max-h-[90vh] overflow-y-auto" style={{ background: PALETTE.paper, border: `1px solid ${PALETTE.border}` }}>
-        <div className="flex items-center justify-between mb-4">
-          <h3 style={{ color: PALETTE.ink, fontFamily: 'Georgia, serif' }} className="text-lg">{title}</h3>
-          <button onClick={onClose} className="p-1 rounded-full hover:opacity-70"><X size={18} color={PALETTE.inkSoft} /></button>
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
+      style={{ background: 'rgba(15,32,67,0.45)', backdropFilter: 'blur(2px)' }}>
+      <div className="w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl p-5 pb-7 max-h-[92vh] overflow-y-auto"
+        style={{ background: PALETTE.paper }}>
+        <div className="w-10 h-1 rounded-full mx-auto mb-4 sm:hidden" style={{ background: PALETTE.border }} />
+        <div className="flex items-center justify-between mb-5">
+          <h3 style={{ color: PALETTE.ink }} className="text-lg font-semibold">{title}</h3>
+          <button onClick={onClose} aria-label="ปิด" className="p-1.5 rounded-full active:scale-90 transition" style={{ background: PALETTE.paperAlt }}>
+            <X size={17} color={PALETTE.inkSoft} />
+          </button>
         </div>
         {children}
       </div>
@@ -176,43 +188,68 @@ function Modal({ title, onClose, children }) {
 
 function StatCard({ icon: Icon, label, value, tone = 'ink', sub }) {
   const color = tone === 'green' ? PALETTE.green : tone === 'red' ? PALETTE.red : PALETTE.ink;
+  const chip = tone === 'green' ? '#E6F6EF' : tone === 'red' ? '#FDECEC' : PALETTE.goldSoft;
   return (
-    <div className="rounded-xl p-4 flex-1 min-w-[140px]" style={{ background: '#fff', border: `1px solid ${PALETTE.border}` }}>
-      <div className="flex items-center gap-2 mb-2">
-        <Icon size={15} color={PALETTE.gold} />
+    <div className="rounded-2xl p-4 flex-1 min-w-[145px]"
+      style={{ background: PALETTE.surface, border: `1px solid ${PALETTE.border}`, boxShadow: SHADOW_CARD }}>
+      <div className="flex items-center gap-2 mb-2.5">
+        <span className="rounded-lg p-1.5 flex" style={{ background: chip }}>
+          <Icon size={14} color={color} />
+        </span>
         <span style={{ color: PALETTE.inkSoft }} className="text-xs">{label}</span>
       </div>
-      <div style={{ color, fontFamily: 'Georgia, serif' }} className="text-2xl">฿{money(value)}</div>
+      <div style={{ color }} className="text-[1.6rem] leading-tight font-semibold tnum">
+        {value < 0 && <span className="mr-0.5">−</span>}
+        <span className="text-base font-normal opacity-60 mr-0.5">฿</span>{money(Math.abs(value))}
+      </div>
       {sub && <div style={{ color: PALETTE.inkSoft }} className="text-xs mt-1">{sub}</div>}
     </div>
   );
 }
 
-function Table({ columns, rows, onDelete, renderRow }) {
+// numericFrom = คอลัมน์ตั้งแต่ลำดับนี้ไปเป็นตัวเลข ให้ชิดขวาให้ตรงกับค่าในตาราง
+function Table({ columns, rows, onDelete, renderRow, numericFrom = 99 }) {
   if (!rows.length) {
-    return <div style={{ color: PALETTE.inkSoft, border: `1px dashed ${PALETTE.border}` }} className="text-sm text-center py-10 rounded-xl">ยังไม่มีรายการ — กด + เพื่อเริ่มบันทึก</div>;
+    return (
+      <div className="rounded-2xl py-14 px-6 text-center"
+        style={{ background: PALETTE.surface, border: `1px dashed ${PALETTE.border}` }}>
+        <div className="mx-auto mb-3 w-11 h-11 rounded-full flex items-center justify-center" style={{ background: PALETTE.goldSoft }}>
+          <Plus size={20} color={PALETTE.gold} />
+        </div>
+        <div style={{ color: PALETTE.ink }} className="text-sm font-medium">ยังไม่มีรายการ</div>
+        <div style={{ color: PALETTE.inkSoft }} className="text-xs mt-1">กดปุ่ม + มุมขวาล่างเพื่อเริ่มบันทึก</div>
+      </div>
+    );
   }
   return (
-    <div className="rounded-xl overflow-hidden" style={{ border: `1px solid ${PALETTE.border}` }}>
-      <table className="w-full text-sm">
-        <thead>
-          <tr style={{ background: PALETTE.paperAlt }}>
-            {columns.map(c => <th key={c} style={{ color: PALETTE.inkSoft }} className="text-left font-normal px-3 py-2 text-xs">{c}</th>)}
-            <th className="w-8"></th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row, i) => (
-            <tr key={row.ID || i} title={row._pending ? 'ยังไม่ได้ส่งขึ้นเซิร์ฟเวอร์' : undefined}
-              style={{ borderTop: `1px solid ${PALETTE.border}`, opacity: row._pending ? 0.5 : 1 }}>
-              {renderRow(row)}
-              <td className="px-2">
-                <button onClick={() => onDelete(row.ID)} className="p-1 hover:opacity-70"><Trash2 size={14} color={PALETTE.red} /></button>
-              </td>
+    <div className="rounded-2xl overflow-hidden" style={{ background: PALETTE.surface, border: `1px solid ${PALETTE.border}`, boxShadow: SHADOW_CARD }}>
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr style={{ background: PALETTE.paperAlt }}>
+              {columns.map((c, i) => (
+                <th key={c} style={{ color: PALETTE.inkSoft }}
+                  className={`font-medium px-3 py-2.5 text-[11px] whitespace-nowrap ${i >= numericFrom ? 'text-right' : 'text-left'}`}>{c}</th>
+              ))}
+              <th className="w-9"></th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {rows.map((row, i) => (
+              <tr key={row.ID || i} title={row._pending ? 'ยังไม่ได้ส่งขึ้นเซิร์ฟเวอร์' : undefined}
+                style={{ borderTop: `1px solid ${PALETTE.border}`, opacity: row._pending ? 0.45 : 1 }}>
+                {renderRow(row)}
+                <td className="px-2 text-right">
+                  <button onClick={() => onDelete(row.ID)} aria-label="ลบรายการ"
+                    className="p-1.5 rounded-lg active:scale-90 transition">
+                    <Trash2 size={14} color={PALETTE.inkSoft} />
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
@@ -392,17 +429,21 @@ export default function FinanceApp() {
 
   if (!ready) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-6" style={{ background: PALETTE.paper }}>
-        <div className="w-full max-w-sm rounded-2xl p-6" style={{ background: '#fff', border: `1px solid ${PALETTE.border}` }}>
-          <div className="flex items-center gap-2 mb-3">
-            <Wallet size={20} color={PALETTE.gold} />
-            <h1 style={{ color: PALETTE.ink, fontFamily: 'Georgia, serif' }} className="text-xl">สมุดบัญชีส่วนตัว</h1>
+      <div className="min-h-screen flex items-center justify-center p-6"
+        style={{ background: `linear-gradient(160deg, ${PALETTE.gold} 0%, ${PALETTE.primaryDeep} 100%)` }}>
+        <div className="w-full max-w-sm rounded-3xl p-7" style={{ background: PALETTE.surface, boxShadow: '0 20px 50px rgba(15,32,67,0.25)' }}>
+          <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-4" style={{ background: PALETTE.goldSoft }}>
+            <Wallet size={22} color={PALETTE.gold} />
           </div>
-          <p style={{ color: PALETTE.inkSoft }} className="text-sm mb-4">วาง Web App URL จาก Google Apps Script ที่ deploy ไว้กับ Google Sheets ของคุณ</p>
+          <h1 style={{ color: PALETTE.ink }} className="text-xl font-semibold mb-1.5">สมุดบัญชีส่วนตัว</h1>
+          <p style={{ color: PALETTE.inkSoft }} className="text-sm mb-5 leading-relaxed">
+            วาง Web App URL จาก Google Apps Script ที่ deploy ไว้กับ Google Sheets ของคุณ
+          </p>
           <input value={urlInput} onChange={e => setUrlInput(e.target.value)} placeholder="https://script.google.com/macros/s/.../exec"
-            className="w-full rounded-lg px-3 py-2 text-sm mb-3" style={inputStyle} />
+            className="w-full rounded-xl px-3.5 py-3 text-sm mb-3" style={inputStyle} />
           <button onClick={saveUrl} disabled={!urlInput.trim()}
-            className="w-full rounded-lg py-2 text-sm text-white disabled:opacity-40" style={{ background: PALETTE.ink }}>
+            className="w-full rounded-xl py-3 text-sm font-medium text-white disabled:opacity-40 active:scale-[0.98] transition"
+            style={{ background: PALETTE.gold }}>
             เชื่อมต่อ
           </button>
         </div>
@@ -421,22 +462,32 @@ export default function FinanceApp() {
   return (
     <div className="min-h-screen pb-24" style={{ background: PALETTE.paper, fontFamily: 'system-ui, sans-serif' }}>
       <Toast status={status} onRetry={() => { refresh(); flush(); }} onClose={() => setStatus(null)} />
-      <header className="px-5 pt-6 pb-4 flex items-center justify-between" style={{ borderBottom: `1px solid ${PALETTE.border}` }}>
-        <div>
-          <div style={{ color: PALETTE.gold }} className="text-xs tracking-widest uppercase mb-1">สมุดบัญชีส่วนตัว</div>
-          <div style={{ color: PALETTE.ink, fontFamily: 'Georgia, serif' }} className="text-2xl">มูลค่าสุทธิ ฿{money(summary.netWorth)}</div>
-          <SyncLine online={online} loading={loading} pending={queue.length} lastSync={lastSync} />
-        </div>
-        <div className="flex gap-2">
-          <button onClick={() => { refresh(); flush(); }} className="p-2 rounded-full" style={{ border: `1px solid ${PALETTE.border}` }}>
-            <RefreshCw size={16} color={PALETTE.inkSoft} className={loading ? 'animate-spin' : ''} />
-          </button>
-          {!embedded && (
-            <button onClick={() => { try { localStorage.removeItem('apps-script-url'); } catch (e) {} setBaseUrl(''); }}
-              className="p-2 rounded-full" style={{ border: `1px solid ${PALETTE.border}` }}>
-              <Settings size={16} color={PALETTE.inkSoft} />
+
+      <header className="safe-top px-5 pb-8 rounded-b-3xl"
+        style={{ background: `linear-gradient(160deg, ${PALETTE.gold} 0%, ${PALETTE.primaryDeep} 100%)` }}>
+        <div className="flex items-start justify-between">
+          <div className="text-white/70 text-[11px] tracking-[0.2em] uppercase pt-1">สมุดบัญชีส่วนตัว</div>
+          <div className="flex gap-2">
+            <button onClick={() => { refresh(); flush(); }} aria-label="รีเฟรช"
+              className="p-2 rounded-full active:scale-95 transition" style={{ background: 'rgba(255,255,255,0.16)' }}>
+              <RefreshCw size={16} color="#fff" className={loading ? 'animate-spin' : ''} />
             </button>
-          )}
+            {!embedded && (
+              <button onClick={() => { try { localStorage.removeItem('apps-script-url'); } catch (e) {} setBaseUrl(''); }}
+                aria-label="ตั้งค่า" className="p-2 rounded-full active:scale-95 transition" style={{ background: 'rgba(255,255,255,0.16)' }}>
+                <Settings size={16} color="#fff" />
+              </button>
+            )}
+          </div>
+        </div>
+
+        <div className="mt-5">
+          <div className="text-white/70 text-xs mb-1">มูลค่าสุทธิ</div>
+          <div className="text-white text-[2.6rem] leading-none font-semibold tnum">
+            {summary.netWorth < 0 && <span className="mr-0.5">−</span>}
+            <span className="text-2xl font-normal align-top mr-1 text-white/80">฿</span>{money(Math.abs(summary.netWorth))}
+          </div>
+          <SyncLine online={online} loading={loading} pending={queue.length} lastSync={lastSync} />
         </div>
       </header>
 
@@ -456,68 +507,87 @@ export default function FinanceApp() {
         )}
 
         {tab === 'transactions' && (
-          <Table columns={['วันที่', 'ประเภท', 'หมวด', 'จำนวน']} rows={view.Transactions} onDelete={id => deleteRow('Transactions', id)}
+          <Table columns={['วันที่', 'ประเภท', 'หมวด', 'จำนวน']} rows={view.Transactions} numericFrom={3}
+            onDelete={id => deleteRow('Transactions', id)}
             renderRow={(r) => (
               <>
-                <td className="px-3 py-2" style={{ color: PALETTE.inkSoft }}>{String(r.Date || '').slice(0, 10)}</td>
-                <td className="px-3 py-2"><span style={{ color: r.Type === 'รายรับ' ? PALETTE.green : PALETTE.red }}>{r.Type}</span></td>
-                <td className="px-3 py-2" style={{ color: PALETTE.ink }}>{r.Category}</td>
-                <td className="px-3 py-2 text-right" style={{ color: r.Type === 'รายรับ' ? PALETTE.green : PALETTE.red, fontFamily: 'Georgia, serif' }}>
-                  {r.Type === 'รายรับ' ? '+' : '-'}฿{money(r.Amount)}
+                <td className="px-3 py-3 whitespace-nowrap tnum" style={{ color: PALETTE.inkSoft }}>{String(r.Date || '').slice(5, 10)}</td>
+                <td className="px-3 py-3">
+                  <span className="text-[11px] rounded-full px-2 py-0.5 whitespace-nowrap"
+                    style={{ background: r.Type === 'รายรับ' ? '#E6F6EF' : '#FDECEC', color: r.Type === 'รายรับ' ? PALETTE.green : PALETTE.red }}>
+                    {r.Type}
+                  </span>
+                </td>
+                <td className="px-3 py-3" style={{ color: PALETTE.ink }}>{r.Category}</td>
+                <td className="px-3 py-3 text-right font-medium tnum whitespace-nowrap"
+                  style={{ color: r.Type === 'รายรับ' ? PALETTE.green : PALETTE.red }}>
+                  {r.Type === 'รายรับ' ? '+' : '−'}฿{money(r.Amount)}
                 </td>
               </>
             )} />
         )}
 
         {tab === 'debts' && (
-          <Table columns={['ชื่อหนี้', 'ประเภท', 'คงเหลือ', 'ผ่อน/เดือน']} rows={view.Debts} onDelete={id => deleteRow('Debts', id)}
+          <Table columns={['ชื่อหนี้', 'ประเภท', 'คงเหลือ', 'ผ่อน/เดือน']} rows={view.Debts} numericFrom={2}
+            onDelete={id => deleteRow('Debts', id)}
             renderRow={(r) => (
               <>
-                <td className="px-3 py-2" style={{ color: PALETTE.ink }}>{r.Name}</td>
-                <td className="px-3 py-2" style={{ color: PALETTE.inkSoft }}>{r.Type}</td>
-                <td className="px-3 py-2 text-right" style={{ color: PALETTE.red, fontFamily: 'Georgia, serif' }}>฿{money(r.RemainingAmount)}</td>
-                <td className="px-3 py-2 text-right" style={{ color: PALETTE.inkSoft }}>฿{money(r.MonthlyPayment)}</td>
+                <td className="px-3 py-3 font-medium" style={{ color: PALETTE.ink }}>{r.Name}</td>
+                <td className="px-3 py-3 text-xs whitespace-nowrap" style={{ color: PALETTE.inkSoft }}>{r.Type}</td>
+                <td className="px-3 py-3 text-right font-medium tnum whitespace-nowrap" style={{ color: PALETTE.red }}>฿{money(r.RemainingAmount)}</td>
+                <td className="px-3 py-3 text-right tnum whitespace-nowrap" style={{ color: PALETTE.inkSoft }}>฿{money(r.MonthlyPayment)}</td>
               </>
             )} />
         )}
 
         {tab === 'insurance' && (
-          <Table columns={['กรมธรรม์', 'ประเภท', 'เบี้ย', 'ต่ออายุ']} rows={view.Insurance} onDelete={id => deleteRow('Insurance', id)}
+          <Table columns={['กรมธรรม์', 'ประเภท', 'เบี้ย', 'ต่ออายุ']} rows={view.Insurance} numericFrom={2}
+            onDelete={id => deleteRow('Insurance', id)}
             renderRow={(r) => (
               <>
-                <td className="px-3 py-2" style={{ color: PALETTE.ink }}>{r.PolicyName}</td>
-                <td className="px-3 py-2" style={{ color: PALETTE.inkSoft }}>{r.Type}</td>
-                <td className="px-3 py-2 text-right" style={{ color: PALETTE.ink, fontFamily: 'Georgia, serif' }}>฿{money(r.PremiumAmount)}</td>
-                <td className="px-3 py-2 text-right" style={{ color: PALETTE.inkSoft }}>{r.RenewalDate}</td>
+                <td className="px-3 py-3 font-medium" style={{ color: PALETTE.ink }}>{r.PolicyName}</td>
+                <td className="px-3 py-3 text-xs whitespace-nowrap" style={{ color: PALETTE.inkSoft }}>{r.Type}</td>
+                <td className="px-3 py-3 text-right font-medium tnum whitespace-nowrap" style={{ color: PALETTE.ink }}>฿{money(r.PremiumAmount)}</td>
+                <td className="px-3 py-3 text-right text-xs tnum whitespace-nowrap" style={{ color: PALETTE.inkSoft }}>{String(r.RenewalDate || '').slice(0, 10)}</td>
               </>
             )} />
         )}
 
         {tab === 'assets' && (
-          <Table columns={['ทรัพย์สิน', 'ประเภท', 'มูลค่าปัจจุบัน']} rows={view.Assets} onDelete={id => deleteRow('Assets', id)}
+          <Table columns={['ทรัพย์สิน', 'ประเภท', 'มูลค่าปัจจุบัน']} rows={view.Assets} numericFrom={2}
+            onDelete={id => deleteRow('Assets', id)}
             renderRow={(r) => (
               <>
-                <td className="px-3 py-2" style={{ color: PALETTE.ink }}>{r.Name}</td>
-                <td className="px-3 py-2" style={{ color: PALETTE.inkSoft }}>{r.Type}</td>
-                <td className="px-3 py-2 text-right" style={{ color: PALETTE.green, fontFamily: 'Georgia, serif' }}>฿{money(r.CurrentValue)}</td>
+                <td className="px-3 py-3 font-medium" style={{ color: PALETTE.ink }}>{r.Name}</td>
+                <td className="px-3 py-3 text-xs whitespace-nowrap" style={{ color: PALETTE.inkSoft }}>{r.Type}</td>
+                <td className="px-3 py-3 text-right font-medium tnum whitespace-nowrap" style={{ color: PALETTE.green }}>฿{money(r.CurrentValue)}</td>
               </>
             )} />
         )}
       </main>
 
       {tab !== 'dashboard' && (
-        <button onClick={() => setModal(tab)} className="fixed bottom-20 right-5 rounded-full p-4 shadow-lg" style={{ background: PALETTE.ink }}>
-          <Plus size={20} color="#fff" />
+        <button onClick={() => setModal(tab)} aria-label="เพิ่มรายการ"
+          className="fixed bottom-24 right-5 rounded-2xl p-4 active:scale-95 transition"
+          style={{ background: PALETTE.gold, boxShadow: SHADOW_LIFT }}>
+          <Plus size={22} color="#fff" strokeWidth={2.5} />
         </button>
       )}
 
-      <nav className="fixed bottom-0 left-0 right-0 flex justify-around py-2" style={{ background: '#fff', borderTop: `1px solid ${PALETTE.border}` }}>
-        {tabs.map(t => (
-          <button key={t.id} onClick={() => setTab(t.id)} className="flex flex-col items-center gap-1 px-2 py-1">
-            <t.icon size={18} color={tab === t.id ? PALETTE.gold : PALETTE.inkSoft} />
-            <span style={{ color: tab === t.id ? PALETTE.gold : PALETTE.inkSoft }} className="text-[10px]">{t.label}</span>
-          </button>
-        ))}
+      <nav className="fixed bottom-0 left-0 right-0 safe-bottom flex justify-around pt-2 px-1"
+        style={{ background: 'rgba(255,255,255,0.92)', backdropFilter: 'blur(12px)', borderTop: `1px solid ${PALETTE.border}` }}>
+        {tabs.map(t => {
+          const active = tab === t.id;
+          return (
+            <button key={t.id} onClick={() => setTab(t.id)}
+              className="flex flex-col items-center gap-1 px-2 pb-1 pt-1.5 rounded-xl transition min-w-[58px]"
+              style={{ background: active ? PALETTE.goldSoft : 'transparent' }}>
+              <t.icon size={18} color={active ? PALETTE.gold : PALETTE.inkSoft} strokeWidth={active ? 2.4 : 1.8} />
+              <span style={{ color: active ? PALETTE.gold : PALETTE.inkSoft }}
+                className={`text-[10px] ${active ? 'font-semibold' : ''}`}>{t.label}</span>
+            </button>
+          );
+        })}
       </nav>
 
       {modal === 'transactions' && <TransactionForm onSave={p => addRow('Transactions', p)} onClose={() => setModal(null)} />}
@@ -543,20 +613,20 @@ function TransactionForm({ onSave, onClose }) {
             </button>
           ))}
         </div>
-        <Field label="วันที่"><input type="date" value={f.Date} onChange={e => setF({ ...f, Date: e.target.value })} className="rounded-lg px-3 py-2" style={inputStyle} /></Field>
+        <Field label="วันที่"><input type="date" value={f.Date} onChange={e => setF({ ...f, Date: e.target.value })} className="rounded-xl px-3.5 py-2.5" style={inputStyle} /></Field>
         <Field label="หมวดหมู่">
-          <select value={f.Category} onChange={e => setF({ ...f, Category: e.target.value })} className="rounded-lg px-3 py-2" style={inputStyle}>
+          <select value={f.Category} onChange={e => setF({ ...f, Category: e.target.value })} className="rounded-xl px-3.5 py-2.5" style={inputStyle}>
             {cats.map(c => <option key={c}>{c}</option>)}
           </select>
         </Field>
-        <Field label="จำนวนเงิน (บาท)"><input type="number" value={f.Amount} onChange={e => setF({ ...f, Amount: e.target.value })} className="rounded-lg px-3 py-2" style={inputStyle} /></Field>
+        <Field label="จำนวนเงิน (บาท)"><input type="number" value={f.Amount} onChange={e => setF({ ...f, Amount: e.target.value })} className="rounded-xl px-3.5 py-2.5" style={inputStyle} /></Field>
         <Field label="บัญชี/ช่องทาง">
-          <select value={f.Account} onChange={e => setF({ ...f, Account: e.target.value })} className="rounded-lg px-3 py-2" style={inputStyle}>
+          <select value={f.Account} onChange={e => setF({ ...f, Account: e.target.value })} className="rounded-xl px-3.5 py-2.5" style={inputStyle}>
             {ACCOUNTS.map(c => <option key={c}>{c}</option>)}
           </select>
         </Field>
-        <Field label="โน้ต (ถ้ามี)"><input value={f.Note} onChange={e => setF({ ...f, Note: e.target.value })} className="rounded-lg px-3 py-2" style={inputStyle} /></Field>
-        <button onClick={() => submit(f)} disabled={busy || !f.Amount} className="mt-2 rounded-lg py-2.5 text-sm text-white disabled:opacity-40" style={{ background: PALETTE.gold }}>{busy ? 'กำลังบันทึก…' : 'บันทึก'}</button>
+        <Field label="โน้ต (ถ้ามี)"><input value={f.Note} onChange={e => setF({ ...f, Note: e.target.value })} className="rounded-xl px-3.5 py-2.5" style={inputStyle} /></Field>
+        <button onClick={() => submit(f)} disabled={busy || !f.Amount} className="mt-3 rounded-xl py-3.5 text-sm font-medium text-white disabled:opacity-40 active:scale-[0.98] transition" style={{ background: PALETTE.gold }}>{busy ? 'กำลังบันทึก…' : 'บันทึก'}</button>
       </div>
     </Modal>
   );
@@ -568,27 +638,27 @@ function DebtForm({ onSave, onClose }) {
   return (
     <Modal title="เพิ่มรายการหนี้สิน" onClose={onClose}>
       <div className="flex flex-col gap-3">
-        <Field label="ชื่อหนี้/เจ้าหนี้"><input value={f.Name} onChange={e => setF({ ...f, Name: e.target.value })} className="rounded-lg px-3 py-2" style={inputStyle} /></Field>
+        <Field label="ชื่อหนี้/เจ้าหนี้"><input value={f.Name} onChange={e => setF({ ...f, Name: e.target.value })} className="rounded-xl px-3.5 py-2.5" style={inputStyle} /></Field>
         <Field label="ประเภท">
-          <select value={f.Type} onChange={e => setF({ ...f, Type: e.target.value })} className="rounded-lg px-3 py-2" style={inputStyle}>
+          <select value={f.Type} onChange={e => setF({ ...f, Type: e.target.value })} className="rounded-xl px-3.5 py-2.5" style={inputStyle}>
             {DEBT_TYPES.map(c => <option key={c}>{c}</option>)}
           </select>
         </Field>
         <div className="flex gap-2">
-          <Field label="ยอดเงินต้น"><input type="number" value={f.PrincipalAmount} onChange={e => setF({ ...f, PrincipalAmount: e.target.value })} className="rounded-lg px-3 py-2 w-full" style={inputStyle} /></Field>
-          <Field label="คงเหลือ"><input type="number" value={f.RemainingAmount} onChange={e => setF({ ...f, RemainingAmount: e.target.value })} className="rounded-lg px-3 py-2 w-full" style={inputStyle} /></Field>
+          <Field label="ยอดเงินต้น"><input type="number" value={f.PrincipalAmount} onChange={e => setF({ ...f, PrincipalAmount: e.target.value })} className="rounded-xl px-3.5 py-2.5 w-full" style={inputStyle} /></Field>
+          <Field label="คงเหลือ"><input type="number" value={f.RemainingAmount} onChange={e => setF({ ...f, RemainingAmount: e.target.value })} className="rounded-xl px-3.5 py-2.5 w-full" style={inputStyle} /></Field>
         </div>
         <div className="flex gap-2">
-          <Field label="ดอกเบี้ย (%/ปี)"><input type="number" value={f.InterestRate} onChange={e => setF({ ...f, InterestRate: e.target.value })} className="rounded-lg px-3 py-2 w-full" style={inputStyle} /></Field>
-          <Field label="ผ่อน/เดือน"><input type="number" value={f.MonthlyPayment} onChange={e => setF({ ...f, MonthlyPayment: e.target.value })} className="rounded-lg px-3 py-2 w-full" style={inputStyle} /></Field>
+          <Field label="ดอกเบี้ย (%/ปี)"><input type="number" value={f.InterestRate} onChange={e => setF({ ...f, InterestRate: e.target.value })} className="rounded-xl px-3.5 py-2.5 w-full" style={inputStyle} /></Field>
+          <Field label="ผ่อน/เดือน"><input type="number" value={f.MonthlyPayment} onChange={e => setF({ ...f, MonthlyPayment: e.target.value })} className="rounded-xl px-3.5 py-2.5 w-full" style={inputStyle} /></Field>
         </div>
-        <Field label="วันครบกำหนดชำระ"><input type="date" value={f.DueDate} onChange={e => setF({ ...f, DueDate: e.target.value })} className="rounded-lg px-3 py-2" style={inputStyle} /></Field>
+        <Field label="วันครบกำหนดชำระ"><input type="date" value={f.DueDate} onChange={e => setF({ ...f, DueDate: e.target.value })} className="rounded-xl px-3.5 py-2.5" style={inputStyle} /></Field>
         <Field label="สถานะ">
-          <select value={f.Status} onChange={e => setF({ ...f, Status: e.target.value })} className="rounded-lg px-3 py-2" style={inputStyle}>
+          <select value={f.Status} onChange={e => setF({ ...f, Status: e.target.value })} className="rounded-xl px-3.5 py-2.5" style={inputStyle}>
             {['ผ่อนอยู่', 'ปิดแล้ว', 'ค้างชำระ'].map(c => <option key={c}>{c}</option>)}
           </select>
         </Field>
-        <button onClick={() => submit(f)} disabled={busy || !f.Name} className="mt-2 rounded-lg py-2.5 text-sm text-white disabled:opacity-40" style={{ background: PALETTE.gold }}>{busy ? 'กำลังบันทึก…' : 'บันทึก'}</button>
+        <button onClick={() => submit(f)} disabled={busy || !f.Name} className="mt-3 rounded-xl py-3.5 text-sm font-medium text-white disabled:opacity-40 active:scale-[0.98] transition" style={{ background: PALETTE.gold }}>{busy ? 'กำลังบันทึก…' : 'บันทึก'}</button>
       </div>
     </Modal>
   );
@@ -600,28 +670,28 @@ function InsuranceForm({ onSave, onClose }) {
   return (
     <Modal title="เพิ่มกรมธรรม์" onClose={onClose}>
       <div className="flex flex-col gap-3">
-        <Field label="ชื่อกรมธรรม์"><input value={f.PolicyName} onChange={e => setF({ ...f, PolicyName: e.target.value })} className="rounded-lg px-3 py-2" style={inputStyle} /></Field>
+        <Field label="ชื่อกรมธรรม์"><input value={f.PolicyName} onChange={e => setF({ ...f, PolicyName: e.target.value })} className="rounded-xl px-3.5 py-2.5" style={inputStyle} /></Field>
         <div className="flex gap-2">
           <Field label="ประเภท">
-            <select value={f.Type} onChange={e => setF({ ...f, Type: e.target.value })} className="rounded-lg px-3 py-2 w-full" style={inputStyle}>
+            <select value={f.Type} onChange={e => setF({ ...f, Type: e.target.value })} className="rounded-xl px-3.5 py-2.5 w-full" style={inputStyle}>
               {INSURANCE_TYPES.map(c => <option key={c}>{c}</option>)}
             </select>
           </Field>
-          <Field label="บริษัท"><input value={f.Company} onChange={e => setF({ ...f, Company: e.target.value })} className="rounded-lg px-3 py-2 w-full" style={inputStyle} /></Field>
+          <Field label="บริษัท"><input value={f.Company} onChange={e => setF({ ...f, Company: e.target.value })} className="rounded-xl px-3.5 py-2.5 w-full" style={inputStyle} /></Field>
         </div>
-        <Field label="เลขกรมธรรม์"><input value={f.PolicyNumber} onChange={e => setF({ ...f, PolicyNumber: e.target.value })} className="rounded-lg px-3 py-2" style={inputStyle} /></Field>
+        <Field label="เลขกรมธรรม์"><input value={f.PolicyNumber} onChange={e => setF({ ...f, PolicyNumber: e.target.value })} className="rounded-xl px-3.5 py-2.5" style={inputStyle} /></Field>
         <div className="flex gap-2">
-          <Field label="เบี้ยประกัน"><input type="number" value={f.PremiumAmount} onChange={e => setF({ ...f, PremiumAmount: e.target.value })} className="rounded-lg px-3 py-2 w-full" style={inputStyle} /></Field>
+          <Field label="เบี้ยประกัน"><input type="number" value={f.PremiumAmount} onChange={e => setF({ ...f, PremiumAmount: e.target.value })} className="rounded-xl px-3.5 py-2.5 w-full" style={inputStyle} /></Field>
           <Field label="ความถี่การจ่าย">
-            <select value={f.PaymentFrequency} onChange={e => setF({ ...f, PaymentFrequency: e.target.value })} className="rounded-lg px-3 py-2 w-full" style={inputStyle}>
+            <select value={f.PaymentFrequency} onChange={e => setF({ ...f, PaymentFrequency: e.target.value })} className="rounded-xl px-3.5 py-2.5 w-full" style={inputStyle}>
               {['รายเดือน', 'รายไตรมาส', 'รายปี', 'ครั้งเดียว'].map(c => <option key={c}>{c}</option>)}
             </select>
           </Field>
         </div>
-        <Field label="วันครบกำหนดต่ออายุ"><input type="date" value={f.RenewalDate} onChange={e => setF({ ...f, RenewalDate: e.target.value })} className="rounded-lg px-3 py-2" style={inputStyle} /></Field>
-        <Field label="ทุนประกัน"><input type="number" value={f.CoverageAmount} onChange={e => setF({ ...f, CoverageAmount: e.target.value })} className="rounded-lg px-3 py-2" style={inputStyle} /></Field>
-        <Field label="ผู้รับผลประโยชน์"><input value={f.Beneficiary} onChange={e => setF({ ...f, Beneficiary: e.target.value })} className="rounded-lg px-3 py-2" style={inputStyle} /></Field>
-        <button onClick={() => submit(f)} disabled={busy || !f.PolicyName} className="mt-2 rounded-lg py-2.5 text-sm text-white disabled:opacity-40" style={{ background: PALETTE.gold }}>{busy ? 'กำลังบันทึก…' : 'บันทึก'}</button>
+        <Field label="วันครบกำหนดต่ออายุ"><input type="date" value={f.RenewalDate} onChange={e => setF({ ...f, RenewalDate: e.target.value })} className="rounded-xl px-3.5 py-2.5" style={inputStyle} /></Field>
+        <Field label="ทุนประกัน"><input type="number" value={f.CoverageAmount} onChange={e => setF({ ...f, CoverageAmount: e.target.value })} className="rounded-xl px-3.5 py-2.5" style={inputStyle} /></Field>
+        <Field label="ผู้รับผลประโยชน์"><input value={f.Beneficiary} onChange={e => setF({ ...f, Beneficiary: e.target.value })} className="rounded-xl px-3.5 py-2.5" style={inputStyle} /></Field>
+        <button onClick={() => submit(f)} disabled={busy || !f.PolicyName} className="mt-3 rounded-xl py-3.5 text-sm font-medium text-white disabled:opacity-40 active:scale-[0.98] transition" style={{ background: PALETTE.gold }}>{busy ? 'กำลังบันทึก…' : 'บันทึก'}</button>
       </div>
     </Modal>
   );
@@ -633,19 +703,19 @@ function AssetForm({ onSave, onClose }) {
   return (
     <Modal title="เพิ่มทรัพย์สิน" onClose={onClose}>
       <div className="flex flex-col gap-3">
-        <Field label="ชื่อทรัพย์สิน"><input value={f.Name} onChange={e => setF({ ...f, Name: e.target.value })} className="rounded-lg px-3 py-2" style={inputStyle} /></Field>
+        <Field label="ชื่อทรัพย์สิน"><input value={f.Name} onChange={e => setF({ ...f, Name: e.target.value })} className="rounded-xl px-3.5 py-2.5" style={inputStyle} /></Field>
         <Field label="ประเภท">
-          <select value={f.Type} onChange={e => setF({ ...f, Type: e.target.value })} className="rounded-lg px-3 py-2" style={inputStyle}>
+          <select value={f.Type} onChange={e => setF({ ...f, Type: e.target.value })} className="rounded-xl px-3.5 py-2.5" style={inputStyle}>
             {ASSET_TYPES.map(c => <option key={c}>{c}</option>)}
           </select>
         </Field>
         <div className="flex gap-2">
-          <Field label="มูลค่าตอนซื้อ"><input type="number" value={f.PurchaseValue} onChange={e => setF({ ...f, PurchaseValue: e.target.value })} className="rounded-lg px-3 py-2 w-full" style={inputStyle} /></Field>
-          <Field label="มูลค่าปัจจุบัน"><input type="number" value={f.CurrentValue} onChange={e => setF({ ...f, CurrentValue: e.target.value })} className="rounded-lg px-3 py-2 w-full" style={inputStyle} /></Field>
+          <Field label="มูลค่าตอนซื้อ"><input type="number" value={f.PurchaseValue} onChange={e => setF({ ...f, PurchaseValue: e.target.value })} className="rounded-xl px-3.5 py-2.5 w-full" style={inputStyle} /></Field>
+          <Field label="มูลค่าปัจจุบัน"><input type="number" value={f.CurrentValue} onChange={e => setF({ ...f, CurrentValue: e.target.value })} className="rounded-xl px-3.5 py-2.5 w-full" style={inputStyle} /></Field>
         </div>
-        <Field label="วันที่ได้มา"><input type="date" value={f.PurchaseDate} onChange={e => setF({ ...f, PurchaseDate: e.target.value })} className="rounded-lg px-3 py-2" style={inputStyle} /></Field>
-        <Field label="โน้ต"><input value={f.Note} onChange={e => setF({ ...f, Note: e.target.value })} className="rounded-lg px-3 py-2" style={inputStyle} /></Field>
-        <button onClick={() => submit(f)} disabled={busy || !f.Name} className="mt-2 rounded-lg py-2.5 text-sm text-white disabled:opacity-40" style={{ background: PALETTE.gold }}>{busy ? 'กำลังบันทึก…' : 'บันทึก'}</button>
+        <Field label="วันที่ได้มา"><input type="date" value={f.PurchaseDate} onChange={e => setF({ ...f, PurchaseDate: e.target.value })} className="rounded-xl px-3.5 py-2.5" style={inputStyle} /></Field>
+        <Field label="โน้ต"><input value={f.Note} onChange={e => setF({ ...f, Note: e.target.value })} className="rounded-xl px-3.5 py-2.5" style={inputStyle} /></Field>
+        <button onClick={() => submit(f)} disabled={busy || !f.Name} className="mt-3 rounded-xl py-3.5 text-sm font-medium text-white disabled:opacity-40 active:scale-[0.98] transition" style={{ background: PALETTE.gold }}>{busy ? 'กำลังบันทึก…' : 'บันทึก'}</button>
       </div>
     </Modal>
   );
