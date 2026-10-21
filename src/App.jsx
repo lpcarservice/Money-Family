@@ -21,12 +21,18 @@ const SHADOW_LIFT = '0 6px 20px rgba(37,99,235,0.35)';
 const EXPENSE_CATS = ['อาหาร', 'ค่ากาแฟ', '7-11', 'ที่อยู่อาศัย', 'ค่าน้ำ', 'ค่าไฟ', 'ค่ารีดผ้า', 'เดินทาง', 'ผ่อนชำระ', 'สุขภาพ', 'บันเทิง', 'การศึกษา', 'ของใช้ส่วนตัว', 'unfiled', 'ปาร์ตี้', 'อื่นๆ'];
 const INCOME_CATS = ['เงินเดือน', 'รายได้ธุรกิจ', 'เงินปันผล/ดอกเบี้ย', 'ค่าคอมมิชชั่น', 'อื่นๆ'];
 const DEBT_TYPES = ['บัตรเครดิต', 'บัตรกดเงินสด', 'สินเชื่อบ้าน', 'สินเชื่อรถ', 'สินเชื่อธุรกิจ', 'กู้ยืมส่วนบุคคล', 'อื่นๆ'];
-const ACCOUNTS = ['เงินสด', 'ธนาคารไทยพาณิชย์ (SCB)', 'ธนาคารกรุงไทย (KTB)', 'ธนาคารกสิกรไทย (KBank)', 'บัญชีธนาคารอื่น', 'พร้อมเพย์/โอน', 'บัตรเครดิต', 'บัตรกดเงินสด', 'e-Wallet', 'อื่นๆ'];
 const INSURANCE_TYPES = ['ชีวิต', 'สุขภาพ', 'รถยนต์', 'บ้าน/อัคคีภัย', 'อุบัติเหตุ', 'อื่นๆ'];
 const ASSET_TYPES = ['เงินฝาก/เงินสด', 'อสังหาริมทรัพย์', 'รถยนต์', 'หุ้น/กองทุน', 'ทองคำ', 'ธุรกิจ/หุ้นส่วน', 'อื่นๆ'];
 
 const money = (n) => (Number(n) || 0).toLocaleString('th-TH', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-const todayStr = () => new Date().toISOString().slice(0, 10);
+// ใช้เวลาเครื่อง ไม่ใช่ UTC — ไม่งั้นก่อน 7 โมงเช้า (ไทย) จะได้วันที่ของเมื่อวาน
+const todayStr = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+
+const DEBT_CLOSED = ['ปิดแล้ว'];
+const INSURANCE_ENDED = ['หมดอายุ', 'ยกเลิก', 'สิ้นสุด'];
 
 // Apps Script ตอนเย็นเครื่อง (cold start) ใช้เวลาได้ถึง ~20 วิ
 const REQUEST_TIMEOUT = 25000;
@@ -272,6 +278,8 @@ export default function FinanceApp() {
   const queueRef = useRef(queue);
   const flushing = useRef(false);
   const everLoaded = useRef(false);
+  // นับรอบการโหลด — ผลจากรอบเก่าที่ตอบกลับช้ากว่าห้ามทับของใหม่
+  const fetchSeq = useRef(0);
 
   useEffect(() => { queueRef.current = queue; writeLS(QUEUE_KEY, queue); }, [queue]);
   useEffect(() => { writeLS(CACHE_KEY, data); }, [data]);
@@ -304,9 +312,11 @@ export default function FinanceApp() {
 
   const refresh = useCallback(async () => {
     if (!ready) return;
+    const seq = ++fetchSeq.current;
     setLoading(true);
     try {
       const r = await fetchAll();
+      if (seq !== fetchSeq.current) return; // มีรอบใหม่กว่าเริ่มไปแล้ว ทิ้งผลรอบนี้
       if (!r || r.success === false) throw new Error(r?.error || 'ไม่ทราบสาเหตุ');
       const d = r.data || {};
       setData({
@@ -320,9 +330,10 @@ export default function FinanceApp() {
       setStatus(s => (s?.type === 'error' ? null : s));
     } catch (e) {
       // ถ้ายังมี cache ให้ดูอยู่ ไม่ต้องตกใจผู้ใช้ — แถบสถานะบนหัวบอกอยู่แล้วว่าซิงค์ไม่ผ่าน
-      if (!everLoaded.current) setStatus({ type: 'error', text: `โหลดข้อมูลไม่สำเร็จ: ${e.message}` });
+      if (seq === fetchSeq.current && !everLoaded.current) setStatus({ type: 'error', text: `โหลดข้อมูลไม่สำเร็จ: ${e.message}` });
+    } finally {
+      if (seq === fetchSeq.current) setLoading(false);
     }
-    setLoading(false);
   }, [ready, fetchAll]);
 
   // ส่งของในคิวทีละชิ้นตามลำดับ ล้มเมื่อไหร่หยุดไว้ก่อน เดี๋ยวรอบหน้ามาต่อ
@@ -337,11 +348,22 @@ export default function FinanceApp() {
           : { action: 'delete', id: op.id };
         const r = await mutate(op.sheet, body);
         if (!r || r.success === false) throw new Error(r?.error || 'ส่งข้อมูลไม่สำเร็จ');
+        // ใส่ผลลงข้อมูลในเครื่องก่อนถอนออกจากคิว รายการจะได้ไม่หายวูบระหว่างรอโหลดใหม่
+        setData(d => {
+          const rows = d[op.sheet] || [];
+          const next = op.action === 'add'
+            ? (rows.some(x => x.ID === op.data.ID) ? rows : [...rows, op.data])
+            : rows.filter(x => x.ID !== op.id);
+          return { ...d, [op.sheet]: next };
+        });
+        fetchSeq.current++; // ผลโหลดที่เริ่มก่อนการเขียนนี้ถือว่าเก่าแล้ว
         queueRef.current = queueRef.current.filter(o => o.opId !== op.opId);
         setQueue(q => q.filter(o => o.opId !== op.opId));
       }
       await refresh();
     } catch (e) {
+      // รอบโหลดที่ค้างอยู่อาจถูกทิ้งไปแล้ว (fetchSeq++) — ปิดไอคอนหมุนเอง
+      setLoading(false);
       setStatus({
         type: 'error',
         text: `ยังส่งขึ้นเซิร์ฟเวอร์ไม่ได้ (ค้าง ${queueRef.current.length} รายการ) — ข้อมูลอยู่ในเครื่องแล้ว จะลองส่งใหม่ให้เอง`,
@@ -388,6 +410,14 @@ export default function FinanceApp() {
       const added = queue.filter(o => o.sheet === s && o.action === 'add').map(o => ({ ...o.data, _pending: true }));
       out[s] = [...(data[s] || []), ...added].filter(r => !pendingDel.has(r.ID));
     });
+    // รายรับ-จ่าย: ใหม่สุดอยู่บน (เรียงตามวันที่ แล้วตามเวลาที่บันทึก)
+    out.Transactions = out.Transactions
+      .map((r, i) => [r, i])
+      .sort(([a, ia], [b, ib]) =>
+        String(b.Date || '').localeCompare(String(a.Date || '')) ||
+        String(b.CreatedAt || '').localeCompare(String(a.CreatedAt || '')) ||
+        ib - ia)
+      .map(([r]) => r);
     return out;
   }, [data, queue]);
 
@@ -416,13 +446,16 @@ export default function FinanceApp() {
     const thisMonth = view.Transactions.filter(t => String(t.Date).slice(0, 7) === ym);
     const income = thisMonth.filter(t => t.Type === 'รายรับ').reduce((s, t) => s + Number(t.Amount || 0), 0);
     const expense = thisMonth.filter(t => t.Type === 'รายจ่าย').reduce((s, t) => s + Number(t.Amount || 0), 0);
-    const debtRemaining = view.Debts.reduce((s, d) => s + Number(d.RemainingAmount || 0), 0);
+    const debtRemaining = view.Debts
+      .filter(d => !DEBT_CLOSED.includes(String(d.Status || '').trim()))
+      .reduce((s, d) => s + Number(d.RemainingAmount || 0), 0);
     const assetTotal = view.Assets.reduce((s, a) => s + Number(a.CurrentValue || 0), 0);
-    const annualPremium = view.Insurance.reduce((s, p) => {
+    const activePolicies = view.Insurance.filter(p => !INSURANCE_ENDED.includes(String(p.Status || '').trim()));
+    const annualPremium = activePolicies.reduce((s, p) => {
       const mult = { 'รายเดือน': 12, 'รายไตรมาส': 4, 'รายปี': 1, 'ครั้งเดียว': 0 }[p.PaymentFrequency] ?? 1;
       return s + Number(p.PremiumAmount || 0) * mult;
     }, 0);
-    return { income, expense, net: income - expense, debtRemaining, assetTotal, annualPremium, netWorth: assetTotal - debtRemaining };
+    return { income, expense, net: income - expense, debtRemaining, assetTotal, annualPremium, policyCount: activePolicies.length, netWorth: assetTotal - debtRemaining };
   }, [view]);
 
   if (!configLoaded) return null;
@@ -473,7 +506,11 @@ export default function FinanceApp() {
               <RefreshCw size={16} color="#fff" className={loading ? 'animate-spin' : ''} />
             </button>
             {!embedded && (
-              <button onClick={() => { try { localStorage.removeItem('apps-script-url'); } catch (e) {} setBaseUrl(''); }}
+              <button onClick={() => {
+                if (!window.confirm('ตัดการเชื่อมต่อ แล้ววาง Web App URL ใหม่?')) return;
+                try { localStorage.removeItem('apps-script-url'); } catch (e) {}
+                setBaseUrl('');
+              }}
                 aria-label="ตั้งค่า" className="p-2 rounded-full active:scale-95 transition" style={{ background: 'rgba(255,255,255,0.16)' }}>
                 <Settings size={16} color="#fff" />
               </button>
@@ -502,7 +539,7 @@ export default function FinanceApp() {
               <StatCard icon={CreditCard} label="หนี้คงเหลือรวม" value={summary.debtRemaining} tone="red" />
               <StatCard icon={Building2} label="มูลค่าทรัพย์สินรวม" value={summary.assetTotal} tone="green" />
             </div>
-            <StatCard icon={ShieldCheck} label="เบี้ยประกันรวมต่อปี" value={summary.annualPremium} sub={`${view.Insurance.length} กรมธรรม์`} />
+            <StatCard icon={ShieldCheck} label="เบี้ยประกันรวมต่อปี" value={summary.annualPremium} sub={`${summary.policyCount} กรมธรรม์ที่มีผล`} />
           </div>
         )}
 
@@ -599,7 +636,7 @@ export default function FinanceApp() {
 }
 
 function TransactionForm({ onSave, onClose }) {
-  const [f, setF] = useState({ Date: todayStr(), Type: 'รายจ่าย', Category: EXPENSE_CATS[0], Amount: '', Account: ACCOUNTS[0], Note: '' });
+  const [f, setF] = useState({ Date: todayStr(), Type: 'รายจ่าย', Category: EXPENSE_CATS[0], Amount: '', Note: '' });
   const [busy, submit] = useSubmit(onSave);
   const cats = f.Type === 'รายรับ' ? INCOME_CATS : EXPENSE_CATS;
   return (
@@ -620,11 +657,6 @@ function TransactionForm({ onSave, onClose }) {
           </select>
         </Field>
         <Field label="จำนวนเงิน (บาท)"><input type="number" value={f.Amount} onChange={e => setF({ ...f, Amount: e.target.value })} className="rounded-xl px-3.5 py-2.5" style={inputStyle} /></Field>
-        <Field label="บัญชี/ช่องทาง">
-          <select value={f.Account} onChange={e => setF({ ...f, Account: e.target.value })} className="rounded-xl px-3.5 py-2.5" style={inputStyle}>
-            {ACCOUNTS.map(c => <option key={c}>{c}</option>)}
-          </select>
-        </Field>
         <Field label="โน้ต (ถ้ามี)"><input value={f.Note} onChange={e => setF({ ...f, Note: e.target.value })} className="rounded-xl px-3.5 py-2.5" style={inputStyle} /></Field>
         <button onClick={() => submit(f)} disabled={busy || !f.Amount} className="mt-3 rounded-xl py-3.5 text-sm font-medium text-white disabled:opacity-40 active:scale-[0.98] transition" style={{ background: PALETTE.gold }}>{busy ? 'กำลังบันทึก…' : 'บันทึก'}</button>
       </div>
